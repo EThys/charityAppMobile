@@ -2,12 +2,17 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:donation/constants/images.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:internet_connection_checker/internet_connection_checker.dart';
 import 'package:provider/provider.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../../components/app_regex.dart';
 import '../../components/app_text_form_field.dart';
 import '../../controllers/AuthentificationCtrl.dart';
 import '../../utils/Routes.dart';
+import '../../utils/SuccessAlertDialog.dart';
 import '../../utils/helpers/snackbar_helper.dart';
+import '../../utils/networkCheck.dart';
 
 class LoginScreen extends StatefulWidget {
   static const String id = '/login';
@@ -47,67 +52,90 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Future<void> _submitForm() async {
-    FocusScope.of(context).requestFocus(new FocusNode());
-    // if (formKey.currentState?.validate() ?? false) {
-    //   return;
-    // }
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
-        return Center(
-          child: CircularProgressIndicator(),
+        return const Center(
+          child: CircularProgressIndicator(
+            color: Colors.yellow,
+          ),
         );
       },
     );
 
-    Map<String, dynamic> userData = {
-      "email": emailController.text,
-      "password": passwordController.text,
-    };
-    var ctrl = context.read<AuthentificationCtrl>();
-    print("Voici les donnees $userData");
-    var res = await ctrl.login(userData);
-    await Future.delayed(Duration(seconds: 2));
+    Future<void> submitProcess() async {
+      FocusScope.of(context).requestFocus(FocusNode());
 
-    Navigator.of(context).pop();
-
-    print("MAMADOUUUUU ${res.status}");
-    print("MAMADOUUUUU ${res.status.runtimeType}");
-    var isValidResponse = res.data != null;
-
-    if (res.status==true) {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            backgroundColor: Colors.blue.shade200,
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.thumb_up, color: Colors.white, size: 60),
-                SizedBox(height: 20),
-                Text(
-                  "Connexion réussie !",
-                  style: TextStyle(color: Colors.white, fontSize: 18),
-                ),
-              ],
-            ),
-          );
-        },
-      );
-
-      Future.delayed(Duration(seconds: 2), () {
+      // Vérifications des champs
+      if (emailController.text.isEmpty || passwordController.text.isEmpty) {
         Navigator.of(context).pop();
-        Navigator.pushNamed(context, Routes.otpRoute);
-      });
-    } else {
-      var errorMessage = res.data['errors']['credentials'] != null
-          ? res.data['errors']['credentials'][0]
-          : 'Erreur inconnue';
-      SnackbarHelper.showSnackBar(errorMessage, isError: true);
+        SnackbarHelper.showSnackBar("Veuillez entrer vos identifiants.", isError: true);
+        return;
+      }
+
+      if (!AppRegex.emailRegex.hasMatch(emailController.text)) {
+        Navigator.of(context).pop();
+        SnackbarHelper.showSnackBar("Veuillez entrer un email valide.", isError: true);
+        return;
+      }
+
+      if (!AppRegex.passwordRegex.hasMatch(passwordController.text)) {
+        Navigator.of(context).pop();
+        SnackbarHelper.showSnackBar("Veuillez entrer un mot de passe valide.", isError: true);
+        return;
+      }
+
+      // Vérification de la connexion Internet
+      bool isConnected = await NetworkUtils.checkAndShowSnackBarIfNoConnection(context);
+      if (!isConnected) {
+        Navigator.of(context).pop(); // Fermer le CircularProgressIndicator
+        print("Erreur de connexion");
+        return;
+      }
+
+      // Préparation des données pour la connexion
+      Map<String, dynamic> userData = {
+        "email": emailController.text,
+        "password": passwordController.text,
+      };
+
+      // Appel au contrôleur d'authentification
+      var ctrl = context.read<AuthentificationCtrl>();
+      print("Données envoyées : $userData");
+      var res = await ctrl.login(userData);
+
+      // Fermer le CircularProgressIndicator après la réponse
+      Navigator.of(context).pop();
+
+      // Traitement de la réponse
+      if (res.status == true) {
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return const SuccessDialog(
+              title: "Connexion réussie !",
+              subtitle: "Vous êtes maintenant connecté(e) à votre compte.",
+              icon: FontAwesomeIcons.checkCircle,
+              iconColor: Colors.green,
+            );
+          },
+        );
+
+        Future.delayed(const Duration(seconds: 5), () {
+          Navigator.of(context).pop(); // Fermer le SuccessDialog
+          Navigator.pushNamed(context, Routes.otpRoute); // Rediriger vers la page OTP
+        });
+      } else {
+        var errorMessage = res.data['errors']['credentials'] != null
+            ? res.data['errors']['credentials'][0]
+            : 'Erreur inconnue';
+        SnackbarHelper.showSnackBar(errorMessage, isError: true);
+      }
     }
+
+    // Lancer le processus de soumission
+    await submitProcess();
   }
 
   @override
@@ -161,9 +189,9 @@ class _LoginScreenState extends State<LoginScreen>
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            const SizedBox(height: 60),
+                            const SizedBox(height: 50),
                             _buildTitleText(context),
-                            const SizedBox(height: 60),
+                            const SizedBox(height: 50),
                             AppTextFormField(
                               controller: emailController,
                               labelText: 'Email',
@@ -178,35 +206,36 @@ class _LoginScreenState extends State<LoginScreen>
                                     : "Entre un email valid";
                               },
                             ),  const SizedBox(height: 20),
-                            ValueListenableBuilder(
+                            ValueListenableBuilder<bool>(
                               valueListenable: passwordNotifier,
                               builder: (_, passwordObscure, __) {
                                 return AppTextFormField(
                                   obscureText: passwordObscure,
                                   controller: passwordController,
                                   labelText: "Mot de passe",
-                                  textInputAction: TextInputAction.done,
+                                  textInputAction: TextInputAction.next,
                                   keyboardType: TextInputType.visiblePassword,
                                   onChanged: (_) => _formKey.currentState?.validate(),
                                   validator: (value) {
                                     return value!.isEmpty
-                                        ? "Entrer un mot de passe"
+                                        ? "Entrer votre mot de passe"
                                         : AppRegex.passwordRegex.hasMatch(value)
                                         ? null
-                                        : "Mot de passe invalid";
+                                        : "Entrer un mot de passe avec huit caracteres";
                                   },
-                                  suffixIcon: IconButton(
-                                    onPressed: () =>
-                                    passwordNotifier.value = !passwordObscure,
-                                    style: IconButton.styleFrom(
-                                      minimumSize: const Size.square(48),
-                                    ),
-                                    icon: Icon(
-                                      passwordObscure
-                                          ? Icons.visibility_off_outlined
-                                          : Icons.visibility_outlined,
-                                      size: 20,
-                                      color: Colors.black,
+                                  suffixIcon: Focus(
+                                    child: IconButton(
+                                      onPressed: () =>
+                                      passwordNotifier.value = !passwordObscure,
+                                      style: IconButton.styleFrom(
+                                        minimumSize: const Size.square(48),
+                                      ),
+                                      icon: Icon(
+                                        passwordObscure
+                                            ? Icons.visibility_off_outlined
+                                            : Icons.visibility_outlined,
+                                        color: Colors.black,
+                                      ),
                                     ),
                                   ),
                                 );
@@ -226,12 +255,11 @@ class _LoginScreenState extends State<LoginScreen>
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 40),
+                            const SizedBox(height: 30),
                             Center(
                               child: ElevatedButton(
                                 onPressed: () {
                                   _submitForm();
-                                  passwordController.clear();
                                 },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.black,
@@ -242,7 +270,7 @@ class _LoginScreenState extends State<LoginScreen>
                                 child: const Text("Se connecter",style: TextStyle(color: Colors.white),),
                               ),
                             ),
-                            const SizedBox(height: 30),
+                            const SizedBox(height: 20),
                             Padding(
                               padding: const EdgeInsets.only(top: 30,bottom: 30,left: 10,right: 10),
                               child: Center(
@@ -287,18 +315,33 @@ class _LoginScreenState extends State<LoginScreen>
     return Column(
       children: [
         Text(
+          'SOS-Congo', // Application Name
+          softWrap: true,
+          style: TextStyle(
+            fontSize: 30, // Adjust size as needed
+            fontWeight: FontWeight.w800, // Make it stand out
+            color: Colors.blue,       // Choose a suitable color
+          ),
+        ), // Add some spacing
+        Text(
           'Bienvenue !',
           softWrap: true,
-          style:
-          TextStyle(fontSize: 60, fontWeight: FontWeight.w600, color: Colors.black),
+          style: TextStyle(
+            fontSize: 60,
+            fontWeight: FontWeight.w600,
+            color: Colors.black,
+          ),
         ),
         Text(
           'Connectez-vous pour continuer',
           softWrap: true,
-          style:
-          TextStyle(fontSize: 20, color: Colors.black),
+          style: TextStyle(
+            fontSize: 20,
+            color: Colors.black,
+          ),
         ),
       ],
     );
   }
+
 }
