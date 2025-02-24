@@ -7,7 +7,6 @@ import '../../constants/images.dart';
 import '../../controllers/AuthentificationCtrl.dart';
 import '../../utils/Routes.dart';
 import 'dart:async';
-
 import '../../utils/networkCheck.dart';
 
 class OtpScreen extends StatefulWidget {
@@ -38,7 +37,9 @@ class _OtpScreenState extends State<OtpScreen> {
           _secondsRemaining--;
         });
       } else {
-        _isResendEnabled = true;
+        setState(() {
+          _isResendEnabled = true; // Active le bouton "Renvoyer le code"
+        });
         _timer.cancel();
       }
     });
@@ -77,16 +78,15 @@ class _OtpScreenState extends State<OtpScreen> {
 
       bool isConnected = await NetworkUtils.checkAndShowSnackBarIfNoConnection(context);
       if (!isConnected) {
-        print("erreur connexionn");
-
+        print("Erreur de connexion");
         return;
       }
 
       var ctrl = context.read<AuthentificationCtrl>();
-      var res = await ctrl.verifyOtp({"otp": _otpCode});
+      var res = await ctrl.verifyOtp({"code": _otpCode});
       Navigator.of(context).pop();
 
-      print("VOICIIIIIIIIIIIIII${res}");
+      print("Réponse de l'API : $res");
 
       if (res.status == true) {
         Navigator.pushReplacementNamed(context, Routes.otpSuccessRoute);
@@ -118,93 +118,105 @@ class _OtpScreenState extends State<OtpScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      body: Stack(
-        children: [
-          Container(
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage(Images.loginBg),
-                fit: BoxFit.cover,
-              ),
-            ),
+      body: Container(
+        width: double.infinity, // Prend toute la largeur de l'écran
+        height: double.infinity, // Prend toute la hauteur de l'écran
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.blue.shade800, Colors.blue.shade400], // Dégradé bleu
           ),
-          SingleChildScrollView(
-            child: SafeArea(
-              child: Center(
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: 600), // Limite la largeur de la carte
                 child: Padding(
-                  padding: const EdgeInsets.only(top: 120.0,left: 20.0,right: 20.0),
+                  padding: const EdgeInsets.only(top: 70.0,left: 20.0,right: 20.0,bottom: 20.0),
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      FaIcon(
-                        FontAwesomeIcons.envelope,
-                        size: 80,
-                        color: Colors.blue[700],
-                      ),
-                      const SizedBox(height: 20),
-                      const Text(
-                        "Nous avons envoyé un code à votre mail",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 16, color: Colors.black54),
-                      ),
-                      const SizedBox(height: 45),
-                      PinCodeTextField(
-                        appContext: context,
-                        length: 6,
-                        onChanged: (value) {
-                          setState(() {
-                            _otpCode = value; // Met à jour le code OTP
-                            print("BONJOURRRRRRRRRRRRRRR ${_otpCode}");
-                          });
-                        },
-                        onCompleted: (value) {
-                          setState(() {
-                            _otpCode = value; // Met à jour le code OTP lorsque complet
-                            print("MARDIIIIIIIIIIIIIIIIIIIII ${_otpCode}");
-                          });
-                          print("MERCREDIIIIIIIIIIIIIIII ${_otpCode}");
-                          _verifyOtp(); // Vérifie le code lorsque l'utilisateur a terminé la saisie
-                        },
-                        pinTheme: PinTheme(
-                          shape: PinCodeFieldShape.box,
-                          borderRadius: BorderRadius.circular(8),
-                          fieldHeight: 40,
-                          fieldWidth: 40,
-                          inactiveColor: Colors.black,
-                          activeColor: Colors.blue.shade400,
-                          selectedColor: Colors.blue.shade400,
+                      Card(
+                        elevation: 5, // Ombre légère
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15), // Bordures arrondies
                         ),
-                        cursorColor: Colors.blue.shade400,
-                      ),
-                      const SizedBox(height: 70),
-                      GestureDetector(
-                        onTap: _isResendEnabled ? _resendCode : null,
-                        child: Text(
-                          "Vous n'avez pas reçu le code ? Renvoyer le code",
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: _isResendEnabled ? Colors.blue : Colors.grey,
-                            fontWeight: FontWeight.bold,
-                            decoration: TextDecoration.underline,
+                        child: Padding(
+                          padding: const EdgeInsets.all(20.0),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min, // Pour que la carte s'adapte au contenu
+                            children: [
+                              FaIcon(
+                                FontAwesomeIcons.envelope,
+                                size: 80,
+                                color: Colors.blue[700],
+                              ),
+                              const SizedBox(height: 20),
+                              const Text(
+                                "Nous avons envoyé un code à votre mail",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontSize: 16, color: Colors.black54),
+                              ),
+                              const SizedBox(height: 45),
+                              PinCodeTextField(
+                                appContext: context,
+                                length: 6,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _otpCode = value; // Met à jour le code OTP
+                                  });
+                                },
+                                onCompleted: (value) {
+                                  setState(() {
+                                    _otpCode = value; // Met à jour le code OTP lorsque complet
+                                  });
+                                  _verifyOtp(); // Vérifie le code lorsque l'utilisateur a terminé la saisie
+                                },
+                                pinTheme: PinTheme(
+                                  shape: PinCodeFieldShape.box,
+                                  borderRadius: BorderRadius.circular(8),
+                                  fieldHeight: 40,
+                                  fieldWidth: 40,
+                                  inactiveColor: Colors.black,
+                                  activeColor: Colors.blue.shade400,
+                                  selectedColor: Colors.blue.shade400,
+                                ),
+                                cursorColor: Colors.blue.shade400,
+                              ),
+                              const SizedBox(height: 70),
+                              GestureDetector(
+                                onTap: _isResendEnabled ? _resendCode : null,
+                                child: Text(
+                                  "Vous n'avez pas reçu le code ? Renvoyer le code",
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: _isResendEnabled ? Colors.blue : Colors.grey,
+                                    fontWeight: FontWeight.bold,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              Text(
+                                "Le code expire dans ${_formatTimer(_secondsRemaining)}",
+                                style: const TextStyle(fontSize: 16, color: Colors.red),
+                              ),
+                              const SizedBox(height: 40),
+                              ElevatedButton(
+                                onPressed: _verifyOtp,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.black,
+                                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                                  textStyle: const TextStyle(fontSize: 18),
+                                ),
+                                child: const Text("Vérifier", style: TextStyle(color: Colors.white)),
+                              ),
+                            ],
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 20),
-                      Text(
-                        "Le code expire dans ${_formatTimer(_secondsRemaining)}",
-                        style: const TextStyle(fontSize: 16, color: Colors.red),
-                      ),
-                      const SizedBox(height: 40),
-                      ElevatedButton(
-                        onPressed: _verifyOtp,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.black,
-                          padding:
-                          const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-                          textStyle: const TextStyle(fontSize: 18),
-                        ),
-                        child:
-                        const Text("Vérifier", style: TextStyle(color: Colors.white)),
                       ),
                     ],
                   ),
@@ -212,7 +224,7 @@ class _OtpScreenState extends State<OtpScreen> {
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }
