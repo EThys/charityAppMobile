@@ -1,9 +1,8 @@
-import 'package:donation/utils/Routes.dart';
 import 'package:flutter/material.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
-
-import '../../utils/StockageKeys.dart';
+import 'package:donation/utils/Routes.dart';
+import 'package:donation/utils/StockageKeys.dart';
 
 class OnboardingScreen extends StatefulWidget {
   @override
@@ -13,7 +12,7 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final controller = PageController();
   bool isLastPage = false;
-  var _stockage = GetStorage();
+  final _storage = GetStorage();
 
   @override
   void dispose() {
@@ -25,84 +24,110 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        padding: const EdgeInsets.only(bottom: 80),
-        child: PageView(
-          controller: controller,
-          onPageChanged: (index) {
-            setState(() => isLastPage = index == 2);
-          },
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Colors.blue.shade800,
+              Colors.blue.shade400,
+            ],
+          ),
+        ),
+        child: Stack(
           children: [
-            buildPage(
-              color: Colors.white,
-              urlImage: 'assets/images/charity_2.jpg',
-              title: 'CREER UNE CAMPAGNE',
-              subtitle:
-              'Partagez votre histoire, même celle difficile de la RDC, et lancez une campagne pour collecter des fonds pour soutenir votre cause et reconstruire l\'espoir.',
+            PageView(
+              controller: controller,
+              onPageChanged: (index) {
+                setState(() => isLastPage = index == 2);
+              },
+              children: [
+                buildPage(
+                  urlImage: 'assets/images/charity_2.jpg',
+                  title: 'CREER UNE CAMPAGNE',
+                  subtitle:
+                  'Partagez votre histoire, même celle difficile de la RDC, et lancez une campagne pour collecter des fonds pour soutenir votre cause et reconstruire l\'espoir.',
+                  icon: Icons.campaign,
+                ),
+                buildPage(
+                  urlImage: 'assets/images/charity.jpg',
+                  title: 'FAIRE UN DON FACILEMENT',
+                  subtitle:
+                  'Soutenez les initiatives en RDC qui œuvrent pour la paix, l\'éducation et la reconstruction après plus de 25 ans de conflits. Chaque don compte.',
+                  icon: Icons.volunteer_activism,
+                ),
+                buildPage(
+                  urlImage: 'assets/images/charity_1.jpg',
+                  title: 'SUIVEZ VOTRE IMPACT EN RDC',
+                  subtitle:
+                  'Voyez concrètement comment vos dons contribuent à améliorer la vie des communautés affectées par la guerre et à bâtir un avenir meilleur pour la RDC.',
+                  icon: Icons.track_changes,
+                ),
+              ],
             ),
-            buildPage(
-              color: Colors.white,
-              urlImage: 'assets/images/charity.jpg',
-              title: 'FAIRE UN DON FACILEMENT',
-              subtitle:
-              'Soutenez les initiatives en RDC qui œuvrent pour la paix, l\'éducation et la reconstruction après plus de 25 ans de conflits. Chaque don compte.',
-            ),
-            buildPage(
-              color: Colors.white,
-              urlImage: 'assets/images/charity_1.jpg',
-              title: 'SUIVEZ VOTRE IMPACT EN RDC',
-              subtitle:
-              'Voyez concrètement comment vos dons contribuent à améliorer la vie des communautés affectées par la guerre et à bâtir un avenir meilleur pour la RDC.',
+            Positioned(
+              bottom: 100,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: SmoothPageIndicator(
+                  controller: controller,
+                  count: 3,
+                  effect: ExpandingDotsEffect(
+                    activeDotColor: Colors.yellow.shade700,
+                    dotColor: Colors.white.withOpacity(0.5),
+                    dotHeight: 10,
+                    dotWidth: 10,
+                    spacing: 16,
+                  ),
+                ),
+              ),
             ),
           ],
         ),
       ),
       bottomSheet: isLastPage
-          ? TextButton(
-        style: TextButton.styleFrom(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(0),
+          ? Container(
+        height: 80,
+        color: Colors.blue.shade500,
+        child: Center(
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.yellow.shade700,
+              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(30),
+              ),
+            ),
+            child: const Text(
+              'Commencer',
+              style: TextStyle(fontSize: 18, color: Colors.white),
+            ),
+            onPressed: () async {
+              await _storage.write(StockageKeys.firstLaunchKey, false);
+              Navigator.pushReplacementNamed(context, Routes.homeRoute);
+            },
           ),
-          backgroundColor: Colors.blue.shade500,
-          minimumSize: const Size.fromHeight(80),
         ),
-        child: const Text(
-          'Commencer',
-          style: TextStyle(fontSize: 24, color: Colors.white),
-        ),
-        onPressed: () async {
-          await _stockage.write(StockageKeys.firstLaunchKey, false);
-          Navigator.pushReplacementNamed(context, Routes.homeRoute);
-        },
       )
           : Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        color: Colors.blue.shade500,
         height: 80,
+        color: Colors.blue.shade500,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             TextButton(
-              child: const Text('Sauter', style: TextStyle(color: Colors.white)),
+              child: const Text(
+                'Sauter',
+                style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
               onPressed: () => controller.jumpToPage(2),
             ),
-            Center(
-              child: SmoothPageIndicator(
-                controller: controller,
-                count: 3,
-                effect: WormEffect(
-                  spacing: 16,
-                  dotColor: Colors.black26,
-                  activeDotColor: Colors.white,
-                ),
-                onDotClicked: (index) => controller.animateToPage(
-                  index,
-                  duration: const Duration(milliseconds: 500),
-                  curve: Curves.easeIn,
-                ),
-              ),
-            ),
             TextButton(
-              child: const Text('Suivant', style: TextStyle(color: Colors.white)),
+              child: const Text(
+                'Suivant',
+                style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
               onPressed: () => controller.nextPage(
                 duration: const Duration(milliseconds: 500),
                 curve: Curves.easeInOut,
@@ -113,60 +138,64 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       ),
     );
   }
+
   Widget buildPage({
-    required Color color,
     required String urlImage,
     required String title,
     required String subtitle,
-  }) =>
-      Container(
-        color: color,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Image.asset(
+    required IconData icon,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: Image.asset(
               urlImage,
-              height: 400,
+              height: 300,
               fit: BoxFit.cover,
               width: double.infinity,
             ),
-            const SizedBox(height: 40),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(  // Wrap the Text and Divider in a Column
-                crossAxisAlignment: CrossAxisAlignment.start, // Align the Divider to the start
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      color: Colors.blue.shade700,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.left,
-                  ),
-                  const SizedBox(height: 4),
-                  Divider(
-                    color: Colors.blue.shade700,
-                    thickness: 2,
-                    endIndent: 100,
-                  ),
-                ],
-              ),
+          ),
+          const SizedBox(height: 40),
+          Icon(
+            icon,
+            size: 50,
+            color: Colors.yellow.shade700,
+          ),
+          const SizedBox(height: 20),
+          Text(
+            title,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 21,
+              fontWeight: FontWeight.bold,
             ),
-            const SizedBox(height: 24),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(
-                subtitle,
-                style: const TextStyle(color: Colors.black87, fontSize: 16),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 10),
+          Divider(
+            color: Colors.yellow.shade700,
+            thickness: 2,
+            indent: 100,
+            endIndent: 100,
+          ),
+          const SizedBox(height: 20),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Text(
+              subtitle,
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.9),
+                fontSize: 16,
               ),
+              textAlign: TextAlign.center,
             ),
-          ],
-        ),
-      );
-
-
-
+          ),
+        ],
+      ),
+    );
+  }
 }
